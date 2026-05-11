@@ -1,0 +1,1416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>� Pick One · 选一个</title>
+    <style>
+        :root {
+            --bg: #f5f5f7;
+            --card: #ffffff;
+            --text: #1d1d1f;
+            --sub: #86868b;
+            --accent: #0071e3;
+            --border: #e5e5ea;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+            padding: 20px;
+            padding-bottom: env(safe-area-inset-bottom, 20px);
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin: 20px 0 10px;
+            letter-spacing: -0.5px;
+        }
+
+        .subtitle {
+            color: var(--sub);
+            font-size: 15px;
+            margin-bottom: 24px;
+        }
+
+        /* 转盘容器 */
+        .wheel-container {
+            position: relative;
+            width: 320px;
+            height: 320px;
+            margin: 0 auto 24px;
+        }
+
+        canvas#wheel {
+            width: 320px;
+            height: 320px;
+            display: block;
+            border-radius: 50%;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04);
+            transition: box-shadow 0.3s;
+        }
+
+        .wheel-container.spinning canvas {
+            box-shadow: 0 12px 40px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.06);
+        }
+
+        /* 指针 */
+        .pointer {
+            position: absolute;
+            top: -18px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 18px solid transparent;
+            border-right: 18px solid transparent;
+            border-top: 36px solid var(--accent);
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+            z-index: 10;
+        }
+
+        /* 中心按钮 */
+        .center-btn {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: var(--accent);
+            border: 3px solid #fff;
+            box-shadow: 0 4px 16px rgba(0,113,227,0.35);
+            color: #fff;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            z-index: 5;
+            transition: transform 0.15s, box-shadow 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .center-btn:active {
+            transform: translate(-50%, -50%) scale(0.92);
+            box-shadow: 0 2px 8px rgba(0,113,227,0.3);
+        }
+
+        .center-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* 结果 */
+        .result-card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 18px 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            text-align: center;
+            transition: all 0.3s;
+            min-width: 280px;
+        }
+
+        .result-label {
+            font-size: 13px;
+            color: var(--sub);
+            margin-bottom: 4px;
+        }
+
+        .result-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--accent);
+            word-break: break-all;
+        }
+
+        .result-value.placeholder {
+            color: var(--sub);
+            font-weight: 400;
+        }
+
+        /* 历史记录 */
+        .history-section {
+            width: 100%;
+            max-width: 380px;
+            margin-bottom: 20px;
+        }
+
+        .history-title {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--sub);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .clear-btn {
+            font-size: 13px;
+            color: var(--accent);
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+
+        .clear-btn:active {
+            background: rgba(0,113,227,0.1);
+        }
+
+        .history-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .history-item {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 6px 14px;
+            font-size: 14px;
+            color: var(--text);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+            animation: popIn 0.3s ease;
+        }
+
+        @keyframes popIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        /* 展开按钮 */
+        .expand-btn {
+            display: block;
+            width: 100%;
+            margin-top: 10px;
+            padding: 8px 0;
+            background: none;
+            border: none;
+            color: var(--accent);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 10px;
+            transition: background 0.15s;
+        }
+
+        .expand-btn:active {
+            background: rgba(0,113,227,0.08);
+        }
+
+        /* 搜索框 */
+        .search-input {
+            width: 100%;
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            padding: 9px 14px;
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+            background: var(--bg);
+            margin-bottom: 10px;
+            transition: border-color 0.2s;
+        }
+
+        .search-input:focus {
+            border-color: var(--accent);
+        }
+
+        /* 选项区域 */
+        .options-section {
+            width: 100%;
+            max-width: 380px;
+            background: var(--card);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+
+        .section-header h3 {
+            font-size: 17px;
+            font-weight: 600;
+        }
+
+        .section-header .count {
+            font-size: 13px;
+            color: var(--sub);
+        }
+
+        .options-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 14px;
+            overflow-y: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .options-list.collapsed {
+            max-height: 120px;
+        }
+
+        .options-list.expanded {
+            max-height: none;
+        }
+
+        .option-tag {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--bg);
+            border-radius: 20px;
+            padding: 8px 14px;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .option-tag .remove-option {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #ff3b30;
+            color: #fff;
+            border: none;
+            font-size: 12px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .option-tag .remove-option:active {
+            background: #d63029;
+        }
+
+        .add-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .add-row input {
+            flex: 1;
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            padding: 10px 14px;
+            font-size: 15px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+            background: var(--bg);
+        }
+
+        .add-row input:focus {
+            border-color: var(--accent);
+        }
+
+        .add-row button {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            padding: 10px 20px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            white-space: nowrap;
+        }
+
+        .add-row button:active {
+            opacity: 0.8;
+        }
+
+        .add-row button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* 数据管理 */
+        .data-section {
+            width: 100%;
+            max-width: 380px;
+            background: var(--card);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            margin-bottom: 16px;
+        }
+
+        .data-header {
+            font-size: 17px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .data-hint {
+            font-size: 13px;
+            color: var(--sub);
+            margin-bottom: 14px;
+            line-height: 1.5;
+        }
+
+        .data-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .data-btn {
+            flex: 1;
+            padding: 11px 0;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: opacity 0.2s, background 0.2s;
+            text-align: center;
+        }
+
+        .data-btn:active {
+            opacity: 0.8;
+        }
+
+        .export-btn {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .import-btn {
+            background: var(--bg);
+            color: var(--accent);
+            border: 1.5px solid var(--accent);
+        }
+
+        /* 底部提示 */
+        .footer-tip {
+            margin-top: 20px;
+            font-size: 12px;
+            color: var(--sub);
+            text-align: center;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--text);
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+
+        /* ============ 自定义弹窗 ============ */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .modal-overlay.closing {
+            animation: fadeOut 0.15s ease forwards;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+
+        .modal-card {
+            background: var(--card);
+            border-radius: 20px;
+            width: 340px;
+            max-width: 90vw;
+            padding: 0;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            animation: slideUp 0.25s ease;
+            overflow: hidden;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-header {
+            padding: 24px 24px 0;
+            text-align: center;
+        }
+
+        .modal-header .modal-icon {
+            font-size: 40px;
+            margin-bottom: 8px;
+        }
+
+        .modal-header h2 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .modal-header .modal-sub {
+            font-size: 13px;
+            color: var(--sub);
+        }
+
+        .modal-body {
+            padding: 20px 24px;
+        }
+
+        .modal-compare {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .modal-compare-col {
+            flex: 1;
+            background: var(--bg);
+            border-radius: 12px;
+            padding: 14px;
+            text-align: center;
+        }
+
+        .modal-compare-col.current {
+            border: 1.5px solid var(--border);
+        }
+
+        .modal-compare-col.file {
+            border: 1.5px solid var(--accent);
+        }
+
+        .modal-compare-col .col-label {
+            font-size: 11px;
+            color: var(--sub);
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .modal-compare-col .col-num {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+
+        .modal-compare-col.file .col-num {
+            color: var(--accent);
+        }
+
+        .modal-compare-col .col-unit {
+            font-size: 12px;
+            color: var(--sub);
+        }
+
+        .modal-options-preview {
+            background: var(--bg);
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-bottom: 16px;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        .modal-options-preview .preview-label {
+            font-size: 12px;
+            color: var(--sub);
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+
+        .modal-options-preview .preview-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .modal-options-preview .preview-tag {
+            background: #fff;
+            border-radius: 12px;
+            padding: 3px 10px;
+            font-size: 12px;
+            color: var(--text);
+        }
+
+        .modal-options-preview .preview-tag.new {
+            background: #e8f4fd;
+            color: var(--accent);
+        }
+
+        .modal-mode-select {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .mode-option {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            border-radius: 14px;
+            border: 2px solid var(--border);
+            cursor: pointer;
+            transition: all 0.15s;
+            background: var(--card);
+        }
+
+        .mode-option:active {
+            transform: scale(0.98);
+        }
+
+        .mode-option.selected {
+            border-color: var(--accent);
+            background: #f0f7ff;
+        }
+
+        .mode-option .mode-radio {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .mode-option.selected .mode-radio {
+            border-color: var(--accent);
+            background: var(--accent);
+        }
+
+        .mode-option.selected .mode-radio::after {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #fff;
+        }
+
+        .mode-option .mode-info {
+            flex: 1;
+        }
+
+        .mode-option .mode-name {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .mode-option .mode-desc {
+            font-size: 12px;
+            color: var(--sub);
+        }
+
+        .modal-footer {
+            padding: 0 24px 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .modal-footer button {
+            flex: 1;
+            padding: 13px 0;
+            border-radius: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: opacity 0.2s;
+        }
+
+        .modal-footer button:active {
+            opacity: 0.8;
+        }
+
+        .modal-cancel {
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .modal-confirm {
+            background: var(--accent);
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <h1>Pick One 🎯</h1>
+    <p class="subtitle">转一下，看看今天做点什么？</p>
+
+    <div class="wheel-container" id="wheelContainer">
+        <div class="pointer"></div>
+        <canvas id="wheel" width="640" height="640"></canvas>
+        <button class="center-btn" id="spinBtn">抽奖</button>
+    </div>
+
+    <div class="result-card">
+        <div class="result-label">🎉 本次结果</div>
+        <div class="result-value placeholder" id="result">等待抽奖...</div>
+    </div>
+
+    <div class="history-section">
+        <div class="history-title">
+            抽奖记录
+            <button class="clear-btn" id="clearHistory">清空</button>
+        </div>
+        <div class="history-list" id="historyList"></div>
+        <button class="expand-btn" id="historyExpandBtn" style="display:none">展开全部记录 ↓</button>
+    </div>
+
+    <div class="options-section">
+        <div class="section-header">
+            <h3>自定义选项</h3>
+            <span class="count" id="optCount"></span>
+        </div>
+        <input type="text" class="search-input" id="optionSearch" placeholder="🔍 搜索选项..." style="display:none">
+        <div class="options-list collapsed" id="optionsList"></div>
+        <button class="expand-btn" id="optionsExpandBtn" style="display:none">展开全部选项 ↓</button>
+        <div class="add-row">
+            <input type="text" id="optionInput" placeholder="输入新选项..." maxlength="30">
+            <button id="addBtn">添加</button>
+        </div>
+    </div>
+
+    <!-- 数据管理 -->
+    <div class="data-section">
+        <div class="data-header">💾 数据管理</div>
+        <p class="data-hint">选项和抽奖记录会同时保存在浏览器中。建议定期导出备份，数据永久不会丢失。</p>
+        <div class="data-buttons">
+            <button class="data-btn export-btn" id="exportBtn">📤 导出数据</button>
+            <button class="data-btn import-btn" id="importBtn">📥 导入数据</button>
+        </div>
+        <input type="file" id="importFile" accept=".json" style="display:none">
+    </div>
+
+    <p class="footer-tip">选项和记录自动保存 · 点击 × 删除选项</p>
+    <div class="toast" id="toast"></div>
+
+    <!-- 导入弹窗 -->
+    <div class="modal-overlay" id="importModal" style="display:none">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-icon">📥</div>
+                <h2>导入数据</h2>
+                <div class="modal-sub" id="modalFileName"></div>
+            </div>
+            <div class="modal-body">
+                <!-- 对比 -->
+                <div class="modal-compare">
+                    <div class="modal-compare-col current">
+                        <div class="col-label">当前数据</div>
+                        <div class="col-num" id="modalCurOpts">-</div>
+                        <div class="col-unit">个选项</div>
+                        <div class="col-num" id="modalCurHist" style="font-size:20px;margin-top:4px;">-</div>
+                        <div class="col-unit">条记录</div>
+                    </div>
+                    <div class="modal-compare-col file">
+                        <div class="col-label">文件数据</div>
+                        <div class="col-num" id="modalFileOpts">-</div>
+                        <div class="col-unit">个选项</div>
+                        <div class="col-num" id="modalFileHist" style="font-size:20px;margin-top:4px;">-</div>
+                        <div class="col-unit">条记录</div>
+                    </div>
+                </div>
+
+                <!-- 合并时的新增预览 -->
+                <div class="modal-options-preview" id="modalPreview" style="display:none">
+                    <div class="preview-label">合并后将新增 <span id="modalNewCount">0</span> 个选项：</div>
+                    <div class="preview-tags" id="modalNewTags"></div>
+                </div>
+
+                <!-- 模式选择 -->
+                <div class="modal-mode-select">
+                    <div class="mode-option selected" data-mode="merge" id="modeMerge">
+                        <div class="mode-radio"></div>
+                        <div class="mode-info">
+                            <div class="mode-name">合并导入</div>
+                            <div class="mode-desc">保留现有数据，仅添加新选项和记录（去重）</div>
+                        </div>
+                    </div>
+                    <div class="mode-option" data-mode="replace" id="modeReplace">
+                        <div class="mode-radio"></div>
+                        <div class="mode-info">
+                            <div class="mode-name">覆盖导入</div>
+                            <div class="mode-desc">完全替换为文件中的数据，现有数据将丢失</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-cancel" id="modalCancel">取消</button>
+                <button class="modal-confirm" id="modalConfirm">确认导入</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============ 数据管理 ============
+        const STORAGE_KEY = 'lucky_wheel_options';
+        const HISTORY_KEY = 'lucky_wheel_history';
+
+        let options = loadOptions();
+        let history = loadHistory();
+        let isSpinning = false;
+        let currentAngle = 0;
+        let animationId = null;
+
+        function loadOptions() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    const arr = JSON.parse(raw);
+                    if (Array.isArray(arr) && arr.length > 0) return arr.map(String);
+                }
+            } catch (e) {}
+            return ['iPhone 16 Pro', 'AirPods Pro', '100元红包', '50元优惠券', '谢谢参与', 'MacBook Air'];
+        }
+
+        function saveOptions() {
+            // 双层保存：localStorage + 自动触发下载提醒
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(options));
+            // 标记有未备份的数据
+            localStorage.setItem('lucky_wheel_unsaved', '1');
+        }
+
+        function loadHistory() {
+            try {
+                const raw = localStorage.getItem(HISTORY_KEY);
+                if (raw) {
+                    const arr = JSON.parse(raw);
+                    if (Array.isArray(arr)) return arr.map(String);
+                }
+            } catch (e) {}
+            return [];
+        }
+
+        function saveHistory() {
+            localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(-200))); // 最多200条记录
+            localStorage.setItem('lucky_wheel_unsaved', '1');
+        }
+
+        // ============ 导出数据为文件 ============
+        function exportData() {
+            const data = {
+                version: 1,
+                exportTime: new Date().toISOString(),
+                options: options,
+                history: history
+            };
+            const json = JSON.stringify(data, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            // 生成带日期的文件名
+            const now = new Date();
+            const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+            a.download = `pick-one-data_${dateStr}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            localStorage.removeItem('lucky_wheel_unsaved');
+            showToast('数据已导出，请保存到"文件"App');
+        }
+
+        // ============ 导入数据 ============
+        let pendingImportData = null;  // 待导入的数据
+        let selectedMode = 'merge';    // 当前选择模式
+
+        function importData(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (!data || !Array.isArray(data.options)) {
+                        showToast('文件格式不正确');
+                        return;
+                    }
+                    if (data.options.length === 0) {
+                        showToast('文件中没有选项数据');
+                        return;
+                    }
+
+                    pendingImportData = data;
+                    selectedMode = 'merge';
+                    showImportModal(file.name);
+                } catch (err) {
+                    showToast('文件解析失败，请检查文件');
+                }
+            };
+            reader.onerror = function() {
+                showToast('文件读取失败');
+            };
+            reader.readAsText(file);
+        }
+
+        function showImportModal(fileName) {
+            const data = pendingImportData;
+            const fileOpts = data.options.map(String);
+            const fileHist = (data.history || []).map(String);
+
+            // 基本信息
+            document.getElementById('modalFileName').textContent = fileName;
+            document.getElementById('modalCurOpts').textContent = options.length;
+            document.getElementById('modalCurHist').textContent = history.length;
+            document.getElementById('modalFileOpts').textContent = fileOpts.length;
+            document.getElementById('modalFileHist').textContent = fileHist.length;
+
+            // 更新模式选择
+            updateModeUI();
+
+            // 显示弹窗
+            const modal = document.getElementById('importModal');
+            modal.style.display = 'flex';
+            modal.classList.remove('closing');
+        }
+
+        function updateModeUI() {
+            const data = pendingImportData;
+            const fileOpts = data.options.map(String);
+
+            // 计算合并时的新增
+            const newOpts = fileOpts.filter(o => !options.includes(o));
+            const newCount = Math.min(newOpts.length, 100 - options.length);
+
+            // 更新选中状态
+            document.querySelectorAll('.mode-option').forEach(el => {
+                el.classList.toggle('selected', el.dataset.mode === selectedMode);
+            });
+
+            // 预览区域（仅合并模式显示）
+            const preview = document.getElementById('modalPreview');
+            if (selectedMode === 'merge' && newCount > 0) {
+                preview.style.display = 'block';
+                document.getElementById('modalNewCount').textContent = newCount;
+                const tagsContainer = document.getElementById('modalNewTags');
+                // 展示前15个
+                const showOpts = newOpts.slice(0, 15);
+                tagsContainer.innerHTML = showOpts.map(o => `<span class="preview-tag new">${escapeHtml(o)}</span>`).join('');
+                if (newOpts.length > 15) {
+                    tagsContainer.innerHTML += `<span class="preview-tag">...等${newOpts.length}项</span>`;
+                }
+            } else if (selectedMode === 'merge' && newCount === 0) {
+                preview.style.display = 'block';
+                document.getElementById('modalNewCount').textContent = '0';
+                document.getElementById('modalNewTags').innerHTML = '<span class="preview-tag" style="color:#86868b">无新选项（全部已存在）</span>';
+            } else {
+                preview.style.display = 'none';
+            }
+        }
+
+        function closeImportModal() {
+            const modal = document.getElementById('importModal');
+            modal.classList.add('closing');
+            setTimeout(() => {
+                modal.style.display = 'none';
+                pendingImportData = null;
+            }, 150);
+        }
+
+        function confirmImport() {
+            const data = pendingImportData;
+            if (!data) return;
+
+            const fileOpts = data.options.map(String);
+            const fileHist = (data.history || []).map(String);
+
+            if (selectedMode === 'replace') {
+                // 覆盖
+                options = fileOpts;
+                history = fileHist.slice(-200);
+                saveOptions();
+                saveHistory();
+                renderAll();
+                showToast(`已覆盖！${options.length}个选项，${history.length}条记录`);
+            } else {
+                // 合并
+                let addedOpts = 0;
+                fileOpts.forEach(opt => {
+                    if (!options.includes(opt) && options.length < 100) {
+                        options.push(opt);
+                        addedOpts++;
+                    }
+                });
+
+                let addedHist = 0;
+                // 用 Set 做高效去重
+                const histSet = new Set(history);
+                fileHist.forEach(h => {
+                    if (!histSet.has(h)) {
+                        histSet.add(h);
+                        addedHist++;
+                    }
+                });
+                history = Array.from(histSet).slice(-200);
+
+                saveOptions();
+                saveHistory();
+                renderAll();
+                showToast(`已合并！新增${addedOpts}个选项，${addedHist}条记录`);
+            }
+
+            closeImportModal();
+        }
+
+        // ============ Canvas 转盘绘制 ============
+        const canvas = document.getElementById('wheel');
+        const ctx = canvas.getContext('2d');
+        const SIZE = 640;
+        const CX = SIZE / 2, CY = SIZE / 2;
+        const RADIUS = 290;
+
+        // 明亮配色
+        const COLORS = [
+            '#FF9500', '#FF2D55', '#007AFF', '#34C759', '#AF52DE',
+            '#FF6B6B', '#5AC8FA', '#FFD60A', '#64D2FF', '#FF9F0A',
+            '#30D158', '#0A84FF', '#FF375F', '#BF5AF2', '#32D74B',
+            '#FF6482', '#70D7FF', '#FFD426', '#66D4CF', '#FF8A00',
+            '#E8505B', '#56CCF2', '#F2994A', '#9B51E0', '#6FCF97',
+            '#EB5757', '#2D9CDB', '#F2C94C', '#BB6BD9', '#27AE60'
+        ];
+
+        function drawWheel(rotationAngle) {
+            ctx.clearRect(0, 0, SIZE, SIZE);
+            const count = options.length;
+
+            if (count === 0) {
+                // 无选项
+                ctx.beginPath();
+                ctx.arc(CX, CY, RADIUS, 0, Math.PI * 2);
+                ctx.fillStyle = '#e5e5ea';
+                ctx.fill();
+                ctx.fillStyle = '#86868b';
+                ctx.font = 'bold 28px -apple-system, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('请添加选项', CX, CY);
+                return;
+            }
+
+            const sliceAngle = (Math.PI * 2) / count;
+
+            for (let i = 0; i < count; i++) {
+                const startAngle = rotationAngle + i * sliceAngle;
+                const endAngle = startAngle + sliceAngle;
+
+                // 绘制扇形
+                ctx.beginPath();
+                ctx.moveTo(CX, CY);
+                ctx.arc(CX, CY, RADIUS, startAngle, endAngle);
+                ctx.closePath();
+                ctx.fillStyle = COLORS[i % COLORS.length];
+                ctx.fill();
+
+                // 描边
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                // 绘制文字
+                ctx.save();
+                ctx.translate(CX, CY);
+                ctx.rotate(startAngle + sliceAngle / 2);
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 22px -apple-system, "PingFang SC", sans-serif';
+                ctx.shadowColor = 'rgba(0,0,0,0.3)';
+                ctx.shadowBlur = 4;
+
+                const text = options[i];
+                const maxWidth = RADIUS - 50;
+                let displayText = text;
+
+                // 文字过长截断
+                if (ctx.measureText(text).width > maxWidth) {
+                    let t = text;
+                    while (t.length > 1 && ctx.measureText(t + '…').width > maxWidth) {
+                        t = t.slice(0, -1);
+                    }
+                    displayText = t + '…';
+                }
+
+                ctx.fillText(displayText, RADIUS - 20, 0);
+                ctx.restore();
+            }
+
+            // 外圈
+            ctx.beginPath();
+            ctx.arc(CX, CY, RADIUS + 5, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+            ctx.lineWidth = 6;
+            ctx.stroke();
+        }
+
+        // ============ 渲染 UI ============
+        const OPTIONS_SHOW_COLLAPSED = 12; // 超过此数量默认折叠
+        let optionsExpanded = false;
+        let optionSearchQuery = '';
+
+        function renderOptions() {
+            const list = document.getElementById('optionsList');
+            const btn = document.getElementById('optionsExpandBtn');
+            const searchInput = document.getElementById('optionSearch');
+
+            // 过滤选项
+            let filtered = options;
+            if (optionSearchQuery) {
+                const q = optionSearchQuery.toLowerCase();
+                filtered = options.filter(opt => opt.toLowerCase().includes(q));
+            }
+
+            // 渲染
+            list.innerHTML = filtered.map((opt) => {
+                const idx = options.indexOf(opt); // 原始索引用于删除
+                return `
+                    <div class="option-tag">
+                        <span>${escapeHtml(opt)}</span>
+                        <button class="remove-option" data-index="${idx}">×</button>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('optCount').textContent = optionSearchQuery
+                ? `筛选 ${filtered.length}/${options.length} 项`
+                : `共 ${options.length} 项`;
+
+            // 搜索框显示逻辑：超过一定数量才显示
+            searchInput.style.display = options.length > 15 ? 'block' : 'none';
+            if (options.length <= 15) {
+                optionSearchQuery = '';
+                searchInput.value = '';
+                optionsExpanded = false;
+            }
+
+            // 折叠状态
+            if (!optionSearchQuery && options.length > OPTIONS_SHOW_COLLAPSED) {
+                if (optionsExpanded) {
+                    list.classList.remove('collapsed');
+                    list.classList.add('expanded');
+                } else {
+                    list.classList.add('collapsed');
+                    list.classList.remove('expanded');
+                }
+                btn.style.display = 'block';
+                btn.textContent = optionsExpanded ? '收起选项 ↑' : `展开全部选项 ↓（共 ${options.length} 项）`;
+            } else if (optionSearchQuery) {
+                // 搜索模式下始终展开，不显示折叠按钮
+                list.classList.remove('collapsed');
+                list.classList.add('expanded');
+                btn.style.display = 'none';
+            } else {
+                list.classList.remove('collapsed');
+                list.classList.add('expanded');
+                btn.style.display = 'none';
+            }
+
+            // 绑定删除
+            list.querySelectorAll('.remove-option').forEach(remBtn => {
+                remBtn.addEventListener('click', () => {
+                    const idx = parseInt(remBtn.dataset.index);
+                    if (options.length <= 1) {
+                        showToast('至少保留一个选项');
+                        return;
+                    }
+                    options.splice(idx, 1);
+                    saveOptions();
+                    renderAll();
+                });
+            });
+
+            // 更新按钮状态
+            document.getElementById('addBtn').disabled = options.length >= 100;
+            document.getElementById('optionInput').placeholder = options.length >= 100 ? '最多100个选项' : '输入新选项...';
+        }
+
+        const HISTORY_SHOW_DEFAULT = 10; // 默认显示最近10条
+        let historyExpanded = false;
+
+        function renderHistory() {
+            const list = document.getElementById('historyList');
+            const btn = document.getElementById('historyExpandBtn');
+
+            if (history.length === 0) {
+                list.innerHTML = '<span style="color:#86868b;font-size:14px;">暂无记录</span>';
+                btn.style.display = 'none';
+                historyExpanded = false;
+            } else {
+                const showCount = historyExpanded ? history.length : Math.min(HISTORY_SHOW_DEFAULT, history.length);
+                const shown = history.slice(0, showCount);
+                list.innerHTML = shown.map(h => `<span class="history-item">${escapeHtml(h)}</span>`).join('');
+
+                if (history.length > HISTORY_SHOW_DEFAULT) {
+                    btn.style.display = 'block';
+                    btn.textContent = historyExpanded
+                        ? `收起记录 ↑（共 ${history.length} 条）`
+                        : `展开全部记录 ↓（共 ${history.length} 条）`;
+                } else {
+                    btn.style.display = 'none';
+                    historyExpanded = false;
+                }
+            }
+        }
+
+        function renderAll() {
+            renderOptions();
+            renderHistory();
+            drawWheel(currentAngle);
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // ============ 抽奖逻辑 ============
+        function spin() {
+            if (isSpinning) return;
+            if (options.length === 0) {
+                showToast('请先添加选项');
+                return;
+            }
+
+            isSpinning = true;
+            const btn = document.getElementById('spinBtn');
+            const container = document.getElementById('wheelContainer');
+            btn.disabled = true;
+            btn.textContent = '...';
+            container.classList.add('spinning');
+            document.getElementById('result').textContent = '转动中...';
+            document.getElementById('result').classList.add('placeholder');
+
+            // 随机结果
+            const targetIndex = Math.floor(Math.random() * options.length);
+            const sliceAngle = (Math.PI * 2) / options.length;
+
+            // 指针在顶部 (12点方向 = -π/2)
+            // 目标扇区的中心角
+            const targetCenterAngle = targetIndex * sliceAngle + sliceAngle / 2;
+            // 指针指向顶部，需要对应角度 = -π/2 (三次元角度)
+            // 转盘旋转 currentAngle 后，第i个扇区中心在 currentAngle + i*sliceAngle + sliceAngle/2
+            // 指针指向 -π/2
+            // 需要: currentAngle_final + targetCenterAngle ≡ -π/2 (mod 2π)
+            // currentAngle_final = -π/2 - targetCenterAngle
+
+            const targetAngle = -Math.PI / 2 - targetCenterAngle;
+            // 加上多圈旋转使动画看起来更自然
+            const extraSpins = 6 + Math.floor(Math.random() * 4); // 6-9圈
+            const finalAngle = targetAngle + extraSpins * Math.PI * 2;
+
+            const startAngle = currentAngle;
+            const totalRotation = finalAngle - startAngle;
+            const duration = 4000 + Math.random() * 1000; // 4-5秒
+
+            const startTime = performance.now();
+
+            function animate(now) {
+                const elapsed = now - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+
+                // easeOutCubic
+                const eased = 1 - Math.pow(1 - progress, 3);
+                currentAngle = startAngle + totalRotation * eased;
+                drawWheel(currentAngle);
+
+                if (progress < 1) {
+                    animationId = requestAnimationFrame(animate);
+                } else {
+                    // 完成
+                    currentAngle = finalAngle % (Math.PI * 2);
+                    drawWheel(currentAngle);
+
+                    const result = options[targetIndex];
+                    document.getElementById('result').textContent = result;
+                    document.getElementById('result').classList.remove('placeholder');
+                    history.unshift(result);
+                    saveHistory();
+                    renderHistory();
+
+                    btn.disabled = false;
+                    btn.textContent = '抽奖';
+                    container.classList.remove('spinning');
+                    isSpinning = false;
+                    animationId = null;
+
+                    // 震动反馈 (iOS)
+                    if (window.navigator && window.navigator.vibrate) {
+                        window.navigator.vibrate(200);
+                    }
+                }
+            }
+
+            animationId = requestAnimationFrame(animate);
+        }
+
+        // ============ Toast ============
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            clearTimeout(toast._timeout);
+            toast._timeout = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2000);
+        }
+
+        // ============ 事件绑定 ============
+        document.getElementById('spinBtn').addEventListener('click', spin);
+
+        // 空格键也可触发
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && !isSpinning && document.activeElement !== document.getElementById('optionInput')) {
+                e.preventDefault();
+                spin();
+            }
+        });
+
+        document.getElementById('addBtn').addEventListener('click', () => {
+            const input = document.getElementById('optionInput');
+            const val = input.value.trim();
+            if (!val) {
+                showToast('请输入选项内容');
+                return;
+            }
+            if (options.length >= 100) {
+                showToast('最多100个选项');
+                return;
+            }
+            if (options.includes(val)) {
+                showToast('选项已存在');
+                return;
+            }
+            options.push(val);
+            saveOptions();
+            renderAll();
+            input.value = '';
+            input.focus();
+        });
+
+        document.getElementById('optionInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('addBtn').click();
+            }
+        });
+
+        document.getElementById('clearHistory').addEventListener('click', () => {
+            if (history.length === 0) return;
+            history = [];
+            saveHistory();
+            renderHistory();
+            showToast('记录已清空');
+        });
+
+        // 展开/收起记录
+        document.getElementById('historyExpandBtn').addEventListener('click', () => {
+            historyExpanded = !historyExpanded;
+            renderHistory();
+        });
+
+        // 选项折叠/展开
+        document.getElementById('optionsExpandBtn').addEventListener('click', () => {
+            optionsExpanded = !optionsExpanded;
+            renderOptions();
+        });
+
+        // 选项搜索
+        document.getElementById('optionSearch').addEventListener('input', (e) => {
+            optionSearchQuery = e.target.value.trim();
+            renderOptions();
+        });
+
+        // ============ 导入导出 ============
+        document.getElementById('exportBtn').addEventListener('click', exportData);
+
+        document.getElementById('importBtn').addEventListener('click', () => {
+            document.getElementById('importFile').click();
+        });
+
+        document.getElementById('importFile').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                importData(file);
+                e.target.value = ''; // 清空以便重复导入同一文件
+            }
+        });
+
+        // ============ 导入弹窗事件 ============
+        document.getElementById('modeMerge').addEventListener('click', () => {
+            selectedMode = 'merge';
+            updateModeUI();
+        });
+
+        document.getElementById('modeReplace').addEventListener('click', () => {
+            selectedMode = 'replace';
+            updateModeUI();
+        });
+
+        document.getElementById('modalCancel').addEventListener('click', closeImportModal);
+
+        document.getElementById('modalConfirm').addEventListener('click', confirmImport);
+
+        // 点击遮罩关闭
+        document.getElementById('importModal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) {
+                closeImportModal();
+            }
+        });
+
+        // ============ 初始渲染 ============
+        renderAll();
+    </script>
+</body>
+</html>
