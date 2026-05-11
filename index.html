@@ -276,6 +276,33 @@
         .section-header .count {
             font-size: 13px;
             color: var(--sub);
+            flex: 1;
+            text-align: center;
+        }
+
+        .edit-toggle-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 1.5px solid var(--border);
+            background: var(--card);
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            color: var(--sub);
+        }
+
+        .edit-toggle-btn:active {
+            background: var(--bg);
+        }
+
+        .edit-toggle-btn.active {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
         }
 
         .options-list {
@@ -298,30 +325,43 @@
         .option-tag {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             background: var(--bg);
             border-radius: 20px;
-            padding: 10px 16px;
-            font-size: 15px;
-            min-height: 44px;
+            padding: 8px 14px;
+            font-size: 14px;
             transition: background 0.2s;
         }
 
         .option-tag .remove-option {
-            width: 24px;
-            height: 24px;
+            width: 18px;
+            height: 18px;
             border-radius: 50%;
             background: #ff3b30;
             color: #fff;
             border: none;
-            font-size: 14px;
+            font-size: 12px;
             line-height: 1;
             cursor: pointer;
-            display: flex;
+            display: none;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            margin-left: 4px;
+            transition: transform 0.15s;
+        }
+
+        .options-section.editing .option-tag .remove-option {
+            display: flex;
+        }
+
+        .options-section.editing .option-tag {
+            animation: shakeTag 0.3s ease;
+        }
+
+        @keyframes shakeTag {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-3px); }
+            75% { transform: translateX(3px); }
         }
 
         .option-tag .remove-option:active {
@@ -715,6 +755,7 @@
         <div class="section-header">
             <h3>自定义选项</h3>
             <span class="count" id="optCount"></span>
+            <button class="edit-toggle-btn" id="editToggleBtn" title="编辑选项">✎</button>
         </div>
         <div class="add-row">
             <input type="text" id="optionInput" placeholder="输入新选项..." maxlength="30">
@@ -816,6 +857,7 @@
         let isSpinning = false;
         let currentAngle = 0;
         let animationId = null;
+        let isEditing = false;
 
         function loadOptions() {
             try {
@@ -1419,6 +1461,22 @@
         document.getElementById('importModal').addEventListener('click', (e) => {
             if (e.target === e.currentTarget) {
                 closeImportModal();
+            }
+        });
+
+        // 编辑模式切换
+        document.getElementById('editToggleBtn').addEventListener('click', () => {
+            isEditing = !isEditing;
+            const section = document.querySelector('.options-section');
+            const btn = document.getElementById('editToggleBtn');
+            if (isEditing) {
+                section.classList.add('editing');
+                btn.classList.add('active');
+                btn.textContent = '✓';
+            } else {
+                section.classList.remove('editing');
+                btn.classList.remove('active');
+                btn.textContent = '✎';
             }
         });
 
