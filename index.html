@@ -771,6 +771,17 @@
         <button class="expand-btn" id="optionsExpandBtn" style="display:none">展开全部选项 ↓</button>
     </div>
 
+    <!-- 数据管理 -->
+    <div class="data-section">
+        <div class="data-header">💾 数据管理</div>
+        <p class="data-hint">选项和抽奖记录会同时保存在浏览器中。关闭页面或删除桌面图标不会丢失，但建议定期导出备份。</p>
+        <div class="data-buttons">
+            <button class="data-btn export-btn" id="exportBtn">📤 导出备份</button>
+            <button class="data-btn import-btn" id="importBtn">📥 恢复备份</button>
+        </div>
+        <input type="file" id="importFile" accept=".json" style="display:none">
+    </div>
+
     <div class="history-section">
         <div class="history-title">
             抽奖记录
@@ -780,18 +791,7 @@
         <button class="expand-btn" id="historyExpandBtn" style="display:none">展开全部记录 ↓</button>
     </div>
 
-    <!-- 数据管理 -->
-    <div class="data-section">
-        <div class="data-header">💾 数据管理</div>
-        <p class="data-hint">选项和抽奖记录会同时保存在浏览器中。建议定期导出备份，数据永久不会丢失。</p>
-        <div class="data-buttons">
-            <button class="data-btn export-btn" id="exportBtn">📤 导出数据</button>
-            <button class="data-btn import-btn" id="importBtn">📥 导入数据</button>
-        </div>
-        <input type="file" id="importFile" accept=".json" style="display:none">
-    </div>
-
-    <p class="footer-tip">选项和记录自动保存 · 点击 × 删除选项</p>
+    <p class="footer-tip">数据自动保存 · 点 ✎ 进入编辑模式删除选项</p>
     <div class="toast" id="toast"></div>
 
     <!-- 导入弹窗 -->
